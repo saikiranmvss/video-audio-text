@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload</title>
+    <script src="/jquery/jquery.min.js"></script>
+    <style>
+        #caption_total p{
+            cursor: pointer;
+            margin-right: 0.2rem;
+        }
+
+        .highlight {
+                background-color: yellow;
+                font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" name="video" id="video" onchange="videoUpload()">
+    <button onclick="jumpToTime(10)">Jump to 10 seconds</button>
+    <button onclick="jumpToTime(30)">Jump to 30 seconds</button>
+    <button onclick="jumpToTime(60)">Jump to 60 seconds</button>
+
+    <div id="media_load">
+       
+    </div>
+    
+    <div id="captions" style="margin-top: 10px;"></div>
+    <div id="realTimeCaptions"></div>
+    <div id="caption_total" style="display: flex;"></div>
+    
+
+    <script>
+let video='';
+let captions;
+let captionsDiv;
+
+        function videoUpload() {
+            var formData = new FormData();
+            formData.append('video', $('#video').prop('files')[0]);
+
+            $.ajax({
+                type: 'post',
+                data: formData,
+                contentType: false,
+                processData: false,
+                url: '/videoUpload',
+                success: function (data) {
+                    $('#media_load').html(data.videoTag);
+
+                    data.transcription.segments.forEach(element => {
+                        $('#caption_total').append('<p onclick="jumpToTime('+element.start+')">'+element.text+'</p>');
+                    });
+
+                    displayCaptions(data.transcription);
+
+                    video = document.getElementById('videoTag');
+
+                    video.addEventListener('play', function() {
+                        console.log('Video is playing');
+                        updateCaption();
+                    });
+
+                    video.addEventListener('pause', function() {
+                        console.log('Video is paused');
+                    });
+
+                    video.addEventListener('ended', function() {
+                        console.log('Video has ended');
+                    });
+                }
+            });
+        }
+
+        jumpToTime = function (timeInSeconds) {
+            var video = $("#videoTag")[0];
+            video.currentTime = timeInSeconds;
+        };
+
+        function displayCaptions(transcription) {
+            captions=transcription;
+        }
+
+
+  function updateCaption() {
+    
+   captionsDiv = document.getElementById('captions');
+    const currentCaption = findCurrentCaption(video.currentTime);
+    if (currentCaption) {
+      captionsDiv.innerText = currentCaption.text;
+    } else {
+      captionsDiv.innerText = '';
+    }
+    if (!video.paused && !video.ended) {
+      requestAnimationFrame(updateCaption); // Update caption on every frame
+    }
+  }
+
+  function findCurrentCaption(currentTime) {
+
+    var textNew = captions.segments.find(text => currentTime >= text.start && currentTime <= text.end);;
+    
+    var searchText = textNew;
+    // clearHighlights(); 
+        $('#caption_total p').each(function(){
+            var paragraphText = $(this).text().trim();
+            if (paragraphText === searchText) {
+                $(this).addClass('highlight');
+            }
+        });
+
+    return textNew;
+  }
+
+  function clearHighlights() {
+        $('#caption_total p').removeClass('highlight');
+    }
+
+    </script>
+</body>
+</html>
+
